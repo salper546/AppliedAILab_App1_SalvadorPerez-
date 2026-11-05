@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Revenue & Q2–Q3 Dynamics Analyzer</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PapaParse for CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-6">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-slate-900">Sales Order Revenue Analytics</h1>
+        <p class="text-slate-500 mt-1">Upload order data to aggregate regional revenue and analyze Q2–Q3 changes.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="loadSampleBtn" class="px-4 py-2 text-sm font-medium bg-slate-200 hover:bg-slate-300 rounded-lg transition-colors">
+          Load Sample CSV
+        </button>
+      </div>
+    </header>
+
+    <!-- Upload Box -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+      <h2 class="text-lg font-semibold text-slate-900 mb-2">Upload Sales CSV</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        Required columns: <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">quarter</code>, 
+        <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">region</code>, 
+        <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">channel</code>, 
+        <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">product</code>, 
+        <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">units</code>, 
+        <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">discount_pct</code>, 
+        <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">revenue</code>.
+      </p>
+      
+      <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-lg p-8 text-center cursor-pointer transition-colors">
+        <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+          <path d="M28 8H12a4 4 0 00-4 4v24a4 4 0 004 4h24a4 4 0 004-4V20L28 8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M28 8v12h12M16 26h16M16 32h10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="mt-2 block text-sm font-semibold text-slate-700">Click to browse or drop CSV here</span>
+        <span id="fileName" class="text-xs text-indigo-600 font-medium mt-1 block"></span>
+      </div>
+      <div id="errorMessage" class="hidden mt-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg"></div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results" class="hidden space-y-8">
+      
+      <!-- AI Insight Card -->
+      <div class="bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-100 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="flex h-3 w-3 relative">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-600"></span>
+          </span>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-900">AI Diagnostic: Q2 vs. Q3 Regional Shift</h2>
+        </div>
+        <p id="aiSummary" class="text-slate-800 text-base leading-relaxed font-medium bg-white/70 p-4 rounded-lg border border-indigo-100/50 shadow-inner">
+          <!-- 3-sentence summary will be inserted here -->
+        </p>
+      </div>
+
+      <!-- Chart and Table Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Revenue Chart -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <h3 class="text-lg font-semibold text-slate-900 mb-4">Total Revenue by Region & Quarter</h3>
+          <div class="relative flex-1 min-h-[350px]">
+            <canvas id="revenueChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Revenue Table -->
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <h3 class="text-lg font-semibold text-slate-900 mb-4">Revenue Breakdown Matrix</h3>
+          <div class="overflow-x-auto flex-1">
+            <table id="summaryTable" class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-slate-50 text-slate-700 uppercase font-semibold text-xs border-b border-slate-200">
+                <!-- Dynamically generated header -->
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <!-- Dynamically generated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let chartInstance = null;
+
+    // Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('csvFileInput');
+    const fileNameDisplay = document.getElementById('fileName');
+    const errorMessage = document.getElementById('errorMessage');
+    const resultsContainer = document.getElementById('results');
+    const summaryTable = document.getElementById('summaryTable');
+    const aiSummaryEl = document.getElementById('aiSummary');
+    const loadSampleBtn = document.getElementById('loadSampleBtn');
+
+    // Drag-and-drop & Click handlers
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-indigo-50/20'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/20'); });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/20');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    // Sample Data Loader
+    loadSampleBtn.addEventListener('click', () => {
+      const sampleCSV = `quarter,region,channel,product,units,discount_pct,revenue
+Q1,North,Direct,Widget A,150,0.05,14250
+Q1,South,Retail,Widget B,200,0.10,18000
+Q1,East,Online,Widget A,320,0.15,27200
+Q1,West,Direct,Widget C,90,0.00,10800
+Q2,North,Direct,Widget A,210,0.05,19950
+Q2,North,Online,Widget B,180,0.10,16200
+Q2,South,Retail,Widget B,250,0.05,23750
+Q2,East,Online,Widget A,300,0.15,25500
+Q2,West,Direct,Widget C,140,0.00,16800
+Q3,North,Direct,Widget A,350,0.08,32200
+Q3,North,Online,Widget B,290,0.12,25520
+Q3,South,Retail,Widget B,240,0.05,22800
+Q3,East,Online,Widget A,310,0.10,27900
+Q3,West,Direct,Widget C,135,0.05,15390
+Q4,North,Direct,Widget A,380,0.05,36100
+Q4,South,Retail,Widget B,260,0.10,23400
+Q4,East,Online,Widget A,340,0.15,28900
+Q4,West,Direct,Widget C,160,0.00,19200`;
+      fileNameDisplay.textContent = 'sample_sales_data.csv';
+      processCSVContent(sampleCSV);
+    });
+
+    function handleFile(file) {
+      if (!file.name.endsWith('.csv')) {
+        showError('Please upload a valid .csv file.');
+        return;
+      }
+      fileNameDisplay.textContent = file.name;
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          processParsedData(results.data);
+        },
+        error: (err) => {
+          showError(`CSV parsing error: ${err.message}`);
+        }
+      });
+    }
+
+    function processCSVContent(csvString) {
+      Papa.parse(csvString, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          processParsedData(results.data);
+        }
+      });
+    }
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorMessage.classList.remove('hidden');
+      resultsContainer.classList.add('hidden');
+    }
+
+    function clearError() {
+      errorMessage.textContent = '';
+      errorMessage.classList.add('hidden');
+    }
+
+    // Main Calculation & Processing Function
+    function processParsedData(rawRows) {
+      clearError();
+      if (!rawRows || rawRows.length === 0) {
+        showError('The provided CSV file contains no records.');
+        return;
+      }
+
+      // Standardize field keys to lowercase
+      const rows = rawRows.map(row => {
+        const standardRow = {};
+        for (let key in row) {
+          standardRow[key.trim().toLowerCase()] = row[key] ? row[key].trim() : '';
+        }
+        return standardRow;
+      });
+
+      // Verify required columns
+      const requiredCols = ['quarter', 'region', 'channel', 'product', 'units', 'discount_pct', 'revenue'];
+      const headers = Object.keys(rows[0]);
+      const missing = requiredCols.filter(col => !headers.includes(col));
+      if (missing.length > 0) {
+        showError(`Missing required column(s): ${missing.join(', ')}`);
+        return;
+      }
+
+      // Collect data structures
+      const quartersSet = new Set();
+      const regionsSet = new Set();
+      // regionQuarterMap[region][quarter] = total revenue
+      const regionQuarterMap = {};
+      
+      // Clean and aggregate rows
+      const cleanRows = [];
+      rows.forEach(r => {
+        const qtr = r.quarter.toUpperCase();
+        const reg = r.region;
+        const channel = r.channel;
+        const product = r.product;
+        const units = parseFloat(r.units.replace(/[^0-9.-]/g, '')) || 0;
+        const discount = parseFloat(r.discount_pct.replace(/[^0-9.-]/g, '')) || 0;
+        const revenue = parseFloat(r.revenue.replace(/[^0-9.-]/g, '')) || 0;
+
+        if (!qtr || !reg) return;
+
+        quartersSet.add(qtr);
+        regionsSet.add(reg);
+
+        if (!regionQuarterMap[reg]) regionQuarterMap[reg] = {};
+        regionQuarterMap[reg][qtr] = (regionQuarterMap[reg][qtr] || 0) + revenue;
+
+        cleanRows.push({ quarter: qtr, region: reg, channel, product, units, discount_pct: discount, revenue });
+      });
+
+      const sortedQuarters = Array.from(quartersSet).sort();
+      const sortedRegions = Array.from(regionsSet).sort();
+
+      // Render Visualizations & Summary
+      renderTable(sortedRegions, sortedQuarters, regionQuarterMap);
+      renderChart(sortedRegions, sortedQuarters, regionQuarterMap);
+      generateAISummary(cleanRows, sortedRegions, regionQuarterMap);
+
+      resultsContainer.classList.remove('hidden');
+    }
+
+    // Render Matrix Table
+    function renderTable(regions, quarters, matrix) {
+      const thead = summaryTable.querySelector('thead');
+      const tbody = summaryTable.querySelector('tbody');
+
+      let headerHtml = `<tr><th class="py-3 px-4">Region</th>`;
+      quarters.forEach(q => {
+        headerHtml += `<th class="py-3 px-4 text-right">${q}</th>`;
+      });
+      headerHtml += `<th class="py-3 px-4 text-right">Total</th></tr>`;
+      thead.innerHTML = headerHtml;
+
+      let bodyHtml = '';
+      regions.forEach(reg => {
+        let rowSum = 0;
+        bodyHtml += `<tr class="hover:bg-slate-50 transition-colors"><td class="py-3 px-4 font-semibold text-slate-800">${reg}</td>`;
+        quarters.forEach(q => {
+          const val = matrix[reg][q] || 0;
+          rowSum += val;
+          bodyHtml += `<td class="py-3 px-4 text-right">$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
+        });
+        bodyHtml += `<td class="py-3 px-4 text-right font-bold text-slate-900">$${rowSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+      });
+      tbody.innerHTML = bodyHtml;
+    }
+
+    // Render Grouped Bar Chart
+    function renderChart(regions, quarters, matrix) {
+      const ctx = document.getElementById('revenueChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      const palette = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+      
+      const datasets = quarters.map((q, idx) => ({
+        label: q,
+        data: regions.map(reg => matrix[reg][q] || 0),
+        backgroundColor: palette[idx % palette.length],
+        borderRadius: 4
+      }));
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: regions,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: $${ctx.raw.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              }
+            },
+            legend: {
+              position: 'bottom'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (val) => '$' + Number(val).toLocaleString()
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Grounded 3-Sentence AI Summary Generator
+    function generateAISummary(rows, regions, matrix) {
+      // Find Q2 and Q3 representations (e.g. Q2, 2, Q02)
+      const isQ2 = (q) => /^(Q2|2)$/i.test(q);
+      const isQ3 = (q) => /^(Q3|3)$/i.test(q);
+
+      // Check if data contains both Q2 and Q3
+      const allQ = rows.map(r => r.quarter);
+      const hasQ2 = allQ.some(isQ2);
+      const hasQ3 = allQ.some(isQ3);
+
+      if (!hasQ2 || !hasQ3) {
+        aiSummaryEl.textContent = "Insufficient quarterly data: both Q2 and Q3 records must be present in the CSV to calculate quarter-over-quarter change.";
+        return;
+      }
+
+      // 1. Identify which region changed the most from Q2 to Q3 in revenue
+      let maxDelta = -1;
+      let targetRegion = null;
+      let targetQ2Rev = 0;
+      let targetQ3Rev = 0;
+      let targetRevDelta = 0;
+
+      regions.forEach(reg => {
+        // compute direct sum for Q2 and Q3
+        const q2Rev = rows.filter(r => r.region === reg && isQ2(r.quarter)).reduce((acc, c) => acc + c.revenue, 0);
+        const q3Rev = rows.filter(r => r.region === reg && isQ3(r.quarter)).reduce((acc, c) => acc + c.revenue, 0);
+        const diff = Math.abs(q3Rev - q2Rev);
+
+        if (diff > maxDelta) {
+          maxDelta = diff;
+          targetRegion = reg;
+          targetQ2Rev = q2Rev;
+          targetQ3Rev = q3Rev;
+          targetRevDelta = q3Rev - q2Rev;
+        }
+      });
+
+      // 2. Compute "Why": Sub-segment drivers for targetRegion between Q2 and Q3
+      const targetRows = rows.filter(r => r.region === targetRegion && (isQ2(r.quarter) || isQ3(r.quarter)));
+      
+      const q2Units = targetRows.filter(r => isQ2(r.quarter)).reduce((a, b) => a + b.units, 0);
+      const q3Units = targetRows.filter(r => isQ3(r.quarter)).reduce((a, b) => a + b.units, 0);
+      const unitsDelta = q3Units - q2Units;
+
+      const q2DiscountSum = targetRows.filter(r => isQ2(r.quarter)).reduce((a, b) => a + (b.discount_pct * b.units), 0);
+      const q3DiscountSum = targetRows.filter(r => isQ3(r.quarter)).reduce((a, b) => a + (b.discount_pct * b.units), 0);
+      const avgQ2Disc = q2Units > 0 ? (q2DiscountSum / q2Units) : 0;
+      const avgQ3Disc = q3Units > 0 ? (q3DiscountSum / q3Units) : 0;
+
+      // Group by Product to find primary product contributor
+      const products = [...new Set(targetRows.map(r => r.product))];
+      let topProduct = null;
+      let topProductDelta = -1;
+      let topProductSignedDelta = 0;
+      let topProductQ2Rev = 0;
+      let topProductQ3Rev = 0;
+
+      products.forEach(p => {
+        const pQ2Rev = targetRows.filter(r => isQ2(r.quarter) && r.product === p).reduce((a, b) => a + b.revenue, 0);
+        const pQ3Rev = targetRows.filter(r => isQ3(r.quarter) && r.product === p).reduce((a, b) => a + b.revenue, 0);
+        const diff = Math.abs(pQ3Rev - pQ2Rev);
+        if (diff > topProductDelta) {
+          topProductDelta = diff;
+          topProduct = p;
+          topProductSignedDelta = pQ3Rev - pQ2Rev;
+          topProductQ2Rev = pQ2Rev;
+          topProductQ3Rev = pQ3Rev;
+        }
+      });
+
+      // Group by Channel to find primary channel contributor
+      const channels = [...new Set(targetRows.map(r => r.channel))];
+      let topChannel = null;
+      let topChannelDelta = -1;
+      let topChannelSignedDelta = 0;
+
+      channels.forEach(ch => {
+        const chQ2Rev = targetRows.filter(r => isQ2(r.quarter) && r.channel === ch).reduce((a, b) => a + b.revenue, 0);
+        const chQ3Rev = targetRows.filter(r => isQ3(r.quarter) && r.channel === ch).reduce((a, b) => a + b.revenue, 0);
+        const diff = Math.abs(chQ3Rev - chQ2Rev);
+        if (diff > topChannelDelta) {
+          topChannelDelta = diff;
+          topChannel = ch;
+          topChannelSignedDelta = chQ3Rev - chQ2Rev;
+        }
+      });
+
+      // Percentages and formatted values
+      const revPctChange = targetQ2Rev !== 0 ? ((targetRevDelta / targetQ2Rev) * 100).toFixed(1) : '0.0';
+      const dirText = targetRevDelta >= 0 ? 'increased' : 'decreased';
+      const absDeltaFormatted = Math.abs(targetRevDelta).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const q2RevFormatted = targetQ2Rev.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const q3RevFormatted = targetQ3Rev.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const prodDeltaFormatted = Math.abs(topProductSignedDelta).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const chDeltaFormatted = Math.abs(topChannelSignedDelta).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      // Construct exactly 3 sentences using strictly calculated values
+      const sentence1 = `${targetRegion} changed the most from Q2 to Q3, with revenue that ${dirText} by $${absDeltaFormatted} (${Math.abs(revPctChange)}%), shifting from $${q2RevFormatted} to $${q3RevFormatted}.`;
+      
+      const sentence2 = `This variance was primarily driven by ${topProduct}, which shifted by $${prodDeltaFormatted} (from $${topProductQ2Rev.toLocaleString(undefined, {minimumFractionDigits: 2})} to $${topProductQ3Rev.toLocaleString(undefined, {minimumFractionDigits: 2})}), with the ${topChannel} channel experiencing the largest channel-level movement of $${chDeltaFormatted}.`;
+      
+      const sentence3 = `Overall regional volume moved by ${unitsDelta >= 0 ? '+' : ''}${unitsDelta.toLocaleString()} units (${q2Units.toLocaleString()} in Q2 vs. ${q3Units.toLocaleString()} in Q3) alongside an average discount movement from ${(avgQ2Disc * 100).toFixed(1)}% to ${(avgQ3Disc * 100).toFixed(1)}%.`;
+
+      // Render strictly 3 sentences
+      aiSummaryEl.innerHTML = `<span class="block mb-1.5"><strong class="text-indigo-800">1.</strong> ${sentence1}</span>` +
+                              `<span class="block mb-1.5"><strong class="text-indigo-800">2.</strong> ${sentence2}</span>` +
+                              `<span class="block"><strong class="text-indigo-800">3.</strong> ${sentence3}</span>`;
+    }
+  </script>
+</body>
+</html>

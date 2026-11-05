@@ -1,0 +1,6 @@
+{
+  "name": "Sales Order Revenue & Dynamics Analyzer",
+  "description": "Upload sales order CSV data to aggregate regional revenue, visualize Q2–Q3 dynamics, and examine grounded diagnostic driver summaries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
