@@ -9,3 +9,27 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 8mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only-slide {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 16px !important;
+    background: white !important;
+    color: #0f172a !important;
+  }
+}
+

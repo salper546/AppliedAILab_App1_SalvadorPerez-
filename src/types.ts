@@ -45,3 +45,45 @@ export interface FilterState {
   channel: string;
   product: string;
 }
+
+export interface ExecutiveBoardInsights {
+  totalQ2Rev: number;
+  totalQ3Rev: number;
+  totalQoQDelta: number;
+  totalQoQPct: number;
+  totalQ2Units: number;
+  totalQ3Units: number;
+  totalUnitsDelta: number;
+  totalUnitsPct: number;
+  q2Asp: number;
+  q3Asp: number;
+  aspDelta: number;
+  q2AvgDiscount: number;
+  q3AvgDiscount: number;
+  discountDeltaBps: number;
+  regionalBreakdown: {
+    region: string;
+    q2Rev: number;
+    q3Rev: number;
+    delta: number;
+    pct: number;
+  }[];
+  productBreakdown: {
+    product: string;
+    q2Rev: number;
+    q3Rev: number;
+    delta: number;
+    pct: number;
+  }[];
+  channelBreakdown: {
+    channel: string;
+    q2Rev: number;
+    q3Rev: number;
+    delta: number;
+    pct: number;
+  }[];
+  ceoDirectives: string[];
+  cfoFinancialBridge: string[];
+  boardGovernanceNotes: string[];
+}
+

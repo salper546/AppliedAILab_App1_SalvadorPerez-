@@ -1,4 +1,4 @@
-import { GroundedDiagnostic, RegionQuarterMatrix, SalesRow } from '../types';
+import { ExecutiveBoardInsights, GroundedDiagnostic, RegionQuarterMatrix, SalesRow } from '../types';
 
 export function formatCurrency(amount: number): string {
   return '$' + amount.toLocaleString('en-US', {
@@ -260,3 +260,114 @@ export function calculateGroundedDiagnostic(
     sentence3,
   };
 }
+
+export function computeExecutiveBoardInsights(
+  rows: SalesRow[],
+  diagnostic: GroundedDiagnostic
+): ExecutiveBoardInsights {
+  const isQ2 = (q: string) => /^(Q2|2)$/i.test(q.trim());
+  const isQ3 = (q: string) => /^(Q3|3)$/i.test(q.trim());
+
+  const q2Rows = rows.filter((r) => isQ2(r.quarter));
+  const q3Rows = rows.filter((r) => isQ3(r.quarter));
+
+  const totalQ2Rev = q2Rows.reduce((acc, r) => acc + r.revenue, 0);
+  const totalQ3Rev = q3Rows.reduce((acc, r) => acc + r.revenue, 0);
+  const totalQoQDelta = totalQ3Rev - totalQ2Rev;
+  const totalQoQPct = totalQ2Rev > 0 ? (totalQoQDelta / totalQ2Rev) * 100 : 0;
+
+  const totalQ2Units = q2Rows.reduce((acc, r) => acc + r.units, 0);
+  const totalQ3Units = q3Rows.reduce((acc, r) => acc + r.units, 0);
+  const totalUnitsDelta = totalQ3Units - totalQ2Units;
+  const totalUnitsPct = totalQ2Units > 0 ? (totalUnitsDelta / totalQ2Units) * 100 : 0;
+
+  const q2Asp = totalQ2Units > 0 ? totalQ2Rev / totalQ2Units : 0;
+  const q3Asp = totalQ3Units > 0 ? totalQ3Rev / totalQ3Units : 0;
+  const aspDelta = q3Asp - q2Asp;
+
+  const q2DiscountSum = q2Rows.reduce((acc, r) => acc + r.discount_pct * r.units, 0);
+  const q3DiscountSum = q3Rows.reduce((acc, r) => acc + r.discount_pct * r.units, 0);
+  const q2AvgDiscount = totalQ2Units > 0 ? q2DiscountSum / totalQ2Units : 0;
+  const q3AvgDiscount = totalQ3Units > 0 ? q3DiscountSum / totalQ3Units : 0;
+  const discountDeltaBps = Math.round((q3AvgDiscount - q2AvgDiscount) * 10000);
+
+  // Regional breakdown
+  const regions = Array.from(new Set(rows.map((r) => r.region))).sort();
+  const regionalBreakdown = regions.map((reg) => {
+    const q2 = q2Rows.filter((r) => r.region === reg).reduce((a, b) => a + b.revenue, 0);
+    const q3 = q3Rows.filter((r) => r.region === reg).reduce((a, b) => a + b.revenue, 0);
+    const delta = q3 - q2;
+    const pct = q2 > 0 ? (delta / q2) * 100 : 0;
+    return { region: reg, q2Rev: q2, q3Rev: q3, delta, pct };
+  }).sort((a, b) => b.delta - a.delta);
+
+  // Product breakdown
+  const products = Array.from(new Set(rows.map((r) => r.product))).sort();
+  const productBreakdown = products.map((prod) => {
+    const q2 = q2Rows.filter((r) => r.product === prod).reduce((a, b) => a + b.revenue, 0);
+    const q3 = q3Rows.filter((r) => r.product === prod).reduce((a, b) => a + b.revenue, 0);
+    const delta = q3 - q2;
+    const pct = q2 > 0 ? (delta / q2) * 100 : 0;
+    return { product: prod, q2Rev: q2, q3Rev: q3, delta, pct };
+  }).sort((a, b) => b.delta - a.delta);
+
+  // Channel breakdown
+  const channels = Array.from(new Set(rows.map((r) => r.channel))).sort();
+  const channelBreakdown = channels.map((ch) => {
+    const q2 = q2Rows.filter((r) => r.channel === ch).reduce((a, b) => a + b.revenue, 0);
+    const q3 = q3Rows.filter((r) => r.channel === ch).reduce((a, b) => a + b.revenue, 0);
+    const delta = q3 - q2;
+    const pct = q2 > 0 ? (delta / q2) * 100 : 0;
+    return { channel: ch, q2Rev: q2, q3Rev: q3, delta, pct };
+  }).sort((a, b) => b.delta - a.delta);
+
+  const topGrowerRegion = regionalBreakdown[0];
+  const laggardRegion = regionalBreakdown[regionalBreakdown.length - 1];
+  const topProduct = productBreakdown[0];
+  const topChannel = channelBreakdown[0];
+
+  // CEO Directives (Strategic, Commercial & Market Focus)
+  const ceoDirectives = [
+    `Top-Line Trajectory: Enterprise revenue generated ${formatCurrency(totalQ3Rev)} in Q3 vs ${formatCurrency(totalQ2Rev)} in Q2 (${totalQoQDelta >= 0 ? '+' : ''}${formatCurrency(totalQoQDelta)} / ${totalQoQPct >= 0 ? '+' : ''}${totalQoQPct.toFixed(1)}%), led by ${topGrowerRegion ? topGrowerRegion.region : 'primary territory'} (${topGrowerRegion && topGrowerRegion.delta >= 0 ? '+' : ''}${topGrowerRegion ? formatCurrency(topGrowerRegion.delta) : '$0'}).`,
+    `Product & Channel Engine: Growth momentum was centered in ${topProduct ? topProduct.product : 'core products'} (${topProduct && topProduct.delta >= 0 ? '+' : ''}${topProduct ? formatCurrency(topProduct.delta) : '$0'}), with ${topChannel ? topChannel.channel : 'primary'} acting as the leading commercial distribution conduit.`,
+    `Strategic Directive: Focus Q4 go-to-market execution on replicating the ${topGrowerRegion ? topGrowerRegion.region : 'target region'} expansion playbook while stabilizing performance in ${laggardRegion && laggardRegion.region !== topGrowerRegion?.region ? laggardRegion.region : 'contracting territories'}.`,
+  ];
+
+  // CFO Financial Bridge (Unit Economics, Price Realization & Margin Audit)
+  const cfoFinancialBridge = [
+    `Volume & Unit Realization: Total unit volume shifted by ${totalUnitsDelta >= 0 ? '+' : ''}${totalUnitsDelta.toLocaleString()} units (${totalUnitsPct >= 0 ? '+' : ''}${totalUnitsPct.toFixed(1)}%), while Average Selling Price (ASP) realized at ${formatCurrency(q3Asp)}/unit vs ${formatCurrency(q2Asp)}/unit (${aspDelta >= 0 ? '+' : ''}${formatCurrency(aspDelta)}/unit).`,
+    `Discount & Contract Discipline: Blended discount rate moved from ${formatPercent(q2AvgDiscount)} to ${formatPercent(q3AvgDiscount)} (${discountDeltaBps >= 0 ? '+' : ''}${discountDeltaBps} bps), demonstrating ${discountDeltaBps > 0 ? 'higher promotional pricing concessions to accelerate volume' : 'disciplined margin preservation across contract negotiations'}.`,
+    `Regional Variance Concentration: ${diagnostic.targetRegion || 'Primary region'} exhibited the largest single variance at ${formatCurrency(Math.abs(diagnostic.targetRevDelta))}, driven by ${diagnostic.topProduct || 'lead product'} and representing a key audit focus for quarterly financial reconciliation.`,
+  ];
+
+  // Board Chair Governance (Portfolio Risk, Capital Allocation & Forward Guidance)
+  const boardGovernanceNotes = [
+    `Enterprise Health & Concentration: Total quarterly volume across all active territories reached ${totalQ3Units.toLocaleString()} units, with ${topProduct ? topProduct.product : 'lead product'} representing ${totalQ3Rev > 0 && topProduct ? ((topProduct.q3Rev / totalQ3Rev) * 100).toFixed(1) : '0'}% of Q3 aggregate revenue.`,
+    `Capital Allocation Priority: Channel distribution shifted towards ${topChannel ? topChannel.channel : 'core channel'}, recommending targeted reinvestment of working capital into inventory readiness and channel enablement.`,
+    `Audit & Governance Directive: Board oversight affirms positive top-line reconciliation with grounded transaction validation; management is instructed to present Q4 territory capacity models at the next governance committee.`,
+  ];
+
+  return {
+    totalQ2Rev,
+    totalQ3Rev,
+    totalQoQDelta,
+    totalQoQPct,
+    totalQ2Units,
+    totalQ3Units,
+    totalUnitsDelta,
+    totalUnitsPct,
+    q2Asp,
+    q3Asp,
+    aspDelta,
+    q2AvgDiscount,
+    q3AvgDiscount,
+    discountDeltaBps,
+    regionalBreakdown,
+    productBreakdown,
+    channelBreakdown,
+    ceoDirectives,
+    cfoFinancialBridge,
+    boardGovernanceNotes,
+  };
+}
+

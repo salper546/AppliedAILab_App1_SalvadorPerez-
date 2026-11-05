@@ -1,11 +1,11 @@
-import React from 'react';
-import { BarChart3, Database, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { BarChart3, Database, FileSpreadsheet, Presentation, RefreshCw } from 'lucide-react';
 
 interface HeaderProps {
   onLoadSample: () => void;
   onReset: () => void;
   hasData: boolean;
   activeDatasetName?: string;
+  onOpenBoardSlide?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -13,6 +13,7 @@ export const Header: React.FC<HeaderProps> = ({
   onReset,
   hasData,
   activeDatasetName,
+  onOpenBoardSlide,
 }) => {
   return (
     <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-6">
@@ -34,14 +35,26 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="flex items-center gap-2 shrink-0">
         {hasData && (
-          <button
-            onClick={onReset}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
-            title="Clear data and upload new file"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Clear
-          </button>
+          <>
+            {onOpenBoardSlide && (
+              <button
+                onClick={onOpenBoardSlide}
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-xs"
+                title="Build and present an executive slide for the quarterly board meeting"
+              >
+                <Presentation className="w-4 h-4" />
+                <span>Executive Board Slide</span>
+              </button>
+            )}
+            <button
+              onClick={onReset}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+              title="Clear data and upload new file"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          </>
         )}
         <button
           onClick={onLoadSample}

@@ -7,6 +7,8 @@ import { RevenueChart } from './components/RevenueChart';
 import { RevenueMatrixTable } from './components/RevenueMatrixTable';
 import { FilterToolbar } from './components/FilterToolbar';
 import { RawDataViewer } from './components/RawDataViewer';
+import { ExecutiveBoardSlideModal } from './components/ExecutiveBoardSlideModal';
+import { Presentation } from 'lucide-react';
 import { FilterState, SalesRow } from './types';
 import {
   parseSalesCsv,
@@ -26,6 +28,7 @@ export default function App() {
     channel: 'all',
     product: 'all',
   });
+  const [isBoardSlideOpen, setIsBoardSlideOpen] = useState(false);
 
   // Automatically initialize with sample data on first load for instant interactivity
   useEffect(() => {
@@ -117,6 +120,7 @@ export default function App() {
           onReset={handleReset}
           hasData={hasData}
           activeDatasetName={fileName || undefined}
+          onOpenBoardSlide={() => setIsBoardSlideOpen(true)}
         />
 
         {/* Upload Box */}
@@ -139,6 +143,34 @@ export default function App() {
               leadingRegion={leadingRegion}
             />
 
+            {/* Executive Board Presentation Banner */}
+            <div className="bg-slate-900 text-white rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border border-slate-800 shadow-xs">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+                  <Presentation className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-white">
+                      Quarterly Board Meeting Slide
+                    </h3>
+                    <span className="text-xs text-indigo-400 font-medium">·</span>
+                    <span className="text-xs text-indigo-300 font-medium">CEO · CFO · Board Chairs</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    16:9 executive briefing slide with grounded variance bridges, unit ASP realization, and strategic governance directives.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsBoardSlideOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold transition-colors shrink-0 shadow-xs"
+              >
+                <Presentation className="w-4 h-4" />
+                <span>Build Board Slide</span>
+              </button>
+            </div>
+
             {/* Filter Toolbar */}
             <FilterToolbar
               rows={rawRows}
@@ -150,7 +182,10 @@ export default function App() {
             />
 
             {/* Grounded AI Diagnostic Card */}
-            <AiDiagnosticCard diagnostic={diagnostic} />
+            <AiDiagnosticCard
+              diagnostic={diagnostic}
+              onOpenBoardSlide={() => setIsBoardSlideOpen(true)}
+            />
 
             {/* Visualizations Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
@@ -174,6 +209,18 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Executive Board Slide Modal */}
+      <ExecutiveBoardSlideModal
+        isOpen={isBoardSlideOpen}
+        onClose={() => setIsBoardSlideOpen(false)}
+        rows={filteredRows}
+        diagnostic={diagnostic}
+        regions={regions}
+        quarters={quarters}
+        matrix={matrix}
+        activeDatasetName={fileName || undefined}
+      />
 
       {/* Subtle Footer */}
       <footer className="border-t border-slate-200 mt-12 py-6 text-center text-xs text-slate-400">

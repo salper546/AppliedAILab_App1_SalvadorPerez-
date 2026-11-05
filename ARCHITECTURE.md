@@ -17,6 +17,7 @@ The Sales Order Revenue & Dynamics Analyzer is an executive financial intelligen
 | `/public/assets/aistudio/ai_studio_code__3__f9e8978a.html` | Archives the original reference single-page implementation of the sales order revenue analyzer. |
 | `/src/App.tsx` | Serves as the root React component, managing dataset lifecycle, multi-attribute filtering, analytics calculations, and overall view orchestration. |
 | `/src/components/AiDiagnosticCard.tsx` | Renders the structured three-sentence diagnostic summary explaining the primary regional variance and its dominant product, channel, and discount drivers. |
+| `/src/components/ExecutiveBoardSlideModal.tsx` | Builds and presents an executive 16:9 widescreen presentation slide formatted for the CEO, CFO, and Board Chairs, complete with role perspectives, PDF printing, and HTML export. |
 | `/src/components/FilterToolbar.tsx` | Provides user controls to slice and filter sales transactions dynamically across regions, sales channels, and product categories. |
 | `/src/components/Header.tsx` | Displays the application title banner, dataset indicators, and quick-action controls for resetting state or loading pre-built sample datasets. |
 | `/src/components/KpiStrip.tsx` | Presents executive headline KPIs including total gross revenue, top variance territory, total volume sold, and blended average discount rates. |

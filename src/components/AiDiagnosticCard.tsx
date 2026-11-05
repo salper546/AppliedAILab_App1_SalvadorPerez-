@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Copy, Check, Sparkles, TrendingUp, TrendingDown, Layers, Box } from 'lucide-react';
+import { Copy, Check, Presentation } from 'lucide-react';
 import { GroundedDiagnostic } from '../types';
 import { formatCurrency } from '../utils/analytics';
 
 interface AiDiagnosticCardProps {
   diagnostic: GroundedDiagnostic;
+  onOpenBoardSlide?: () => void;
 }
 
-export const AiDiagnosticCard: React.FC<AiDiagnosticCardProps> = ({ diagnostic }) => {
+export const AiDiagnosticCard: React.FC<AiDiagnosticCardProps> = ({ diagnostic, onOpenBoardSlide }) => {
   const [copied, setCopied] = useState(false);
 
   const fullText = diagnostic.hasQ2AndQ3
@@ -33,22 +34,34 @@ export const AiDiagnosticCard: React.FC<AiDiagnosticCardProps> = ({ diagnostic }
           </h2>
         </div>
 
-        <button
-          onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-white/80 hover:bg-white border border-indigo-200/80 transition-colors self-start sm:self-auto shadow-xs"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Copied Diagnostic</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              <span>Copy Diagnostic</span>
-            </>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {onOpenBoardSlide && diagnostic.hasQ2AndQ3 && (
+            <button
+              onClick={onOpenBoardSlide}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs"
+              title="Build executive slide for CEO, CFO and Board Chairs"
+            >
+              <Presentation className="w-3.5 h-3.5" />
+              <span>Executive Board Slide</span>
+            </button>
           )}
-        </button>
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-white/80 hover:bg-white border border-indigo-200/80 transition-colors shadow-xs"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Copied Diagnostic</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Diagnostic</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="text-slate-800 text-sm sm:text-base leading-relaxed bg-white/85 p-5 rounded-lg border border-indigo-100/70 shadow-xs space-y-3">
